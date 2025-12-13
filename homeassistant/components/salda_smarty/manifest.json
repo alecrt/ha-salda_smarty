@@ -1,8 +1,8 @@
 {
   "domain": "salda_smarty",
-  "name": "Salda Smarty (Custom)",
+  "name": "Salda Smarty Multi MCB",
   "version": "1.0.0",
-  "codeowners": ["@z0mbieprocess"],
+  "codeowners": ["@z0mbieprocess", "@alecrt"],
   "config_flow": true,
   "documentation": "https://www.home-assistant.io/integrations/smarty",
   "integration_type": "hub",
