@@ -13,9 +13,6 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 _LOGGER = logging.getLogger(__name__)
 
-MAX_RETRIES = 3
-RETRY_DELAY = 1.0  # seconds between retries
-
 type SmartyConfigEntry = ConfigEntry[dict[int, "SmartyCoordinator"]]
 
 
@@ -45,8 +42,11 @@ class SmartyCoordinator(DataUpdateCoordinator[None]):
         self.client = Smarty(host=config_entry.data[CONF_HOST], device_id=slave)
         self._modbus_lock = modbus_lock
 
-    async def _async_update_with_retry(self) -> bool:
-        """Update data with retry logic."""
+    async def _async_update_with_retry(self) -> None:
+        """Update data with retry logic.
+
+        Raises UpdateFailed if all retry attempts fail.
+        """
         last_error: Exception | None = None
 
         for attempt in range(1, MAX_RETRIES + 1):
@@ -59,7 +59,7 @@ class SmartyCoordinator(DataUpdateCoordinator[None]):
                             self.slave,
                             attempt,
                         )
-                    return True
+                    return
                 _LOGGER.debug(
                     "Slave %d: Update returned False (attempt %d/%d)",
                     self.slave,
