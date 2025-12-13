@@ -13,6 +13,9 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 _LOGGER = logging.getLogger(__name__)
 
+MAX_RETRIES = 3
+RETRY_DELAY = 1.0  # seconds between retries
+
 type SmartyConfigEntry = ConfigEntry[dict[int, "SmartyCoordinator"]]
 
 
@@ -42,15 +45,55 @@ class SmartyCoordinator(DataUpdateCoordinator[None]):
         self.client = Smarty(host=config_entry.data[CONF_HOST], device_id=slave)
         self._modbus_lock = modbus_lock
 
+    async def _async_update_with_retry(self) -> bool:
+        """Update data with retry logic."""
+        last_error: Exception | None = None
+
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                result = await self.hass.async_add_executor_job(self.client.update)
+                if result:
+                    if attempt > 1:
+                        _LOGGER.debug(
+                            "Slave %d: Update succeeded on attempt %d",
+                            self.slave,
+                            attempt,
+                        )
+                    return True
+                _LOGGER.debug(
+                    "Slave %d: Update returned False (attempt %d/%d)",
+                    self.slave,
+                    attempt,
+                    MAX_RETRIES,
+                )
+            except Exception as err:  # noqa: BLE001
+                last_error = err
+                _LOGGER.debug(
+                    "Slave %d: Update raised exception on attempt %d/%d: %s",
+                    self.slave,
+                    attempt,
+                    MAX_RETRIES,
+                    err,
+                )
+
+            if attempt < MAX_RETRIES:
+                await asyncio.sleep(RETRY_DELAY)
+
+        if last_error:
+            raise UpdateFailed(
+                f"Failed to update Smarty data for slave {self.slave} after {MAX_RETRIES} attempts: {last_error}"
+            )
+        raise UpdateFailed(
+            f"Failed to update Smarty data for slave {self.slave} after {MAX_RETRIES} attempts"
+        )
+
     async def _async_setup(self) -> None:
         async with self._modbus_lock:
-            if not await self.hass.async_add_executor_job(self.client.update):
-                raise UpdateFailed(f"Failed to update Smarty data for slave {self.slave}")
+            await self._async_update_with_retry()
             self.software_version = self.client.get_software_version()
             self.configuration_version = self.client.get_configuration_version()
 
     async def _async_update_data(self) -> None:
         """Fetch data from Smarty."""
         async with self._modbus_lock:
-            if not await self.hass.async_add_executor_job(self.client.update):
-                raise UpdateFailed(f"Failed to update Smarty data for slave {self.slave}")
+            await self._async_update_with_retry()
