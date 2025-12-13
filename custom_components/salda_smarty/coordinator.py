@@ -63,6 +63,8 @@ class SmartyCoordinator(DataUpdateCoordinator[None]):
                             attempt,
                         )
                     return
+                # Reset last_error since this failure was a False return, not an exception
+                last_error = None
                 _LOGGER.debug(
                     "Slave %d: Update returned False (attempt %d/%d)",
                     self.slave,
@@ -87,7 +89,7 @@ class SmartyCoordinator(DataUpdateCoordinator[None]):
                 f"Failed to update Smarty data for slave {self.slave} after {MAX_RETRIES} attempts: {last_error}"
             )
         raise UpdateFailed(
-            f"Failed to update Smarty data for slave {self.slave} after {MAX_RETRIES} attempts"
+            f"Failed to update Smarty data for slave {self.slave} after {MAX_RETRIES} attempts (update returned False)"
         )
 
     async def _async_setup(self) -> None:
