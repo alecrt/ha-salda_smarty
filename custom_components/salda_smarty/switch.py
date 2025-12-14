@@ -78,14 +78,12 @@ class SmartySwitch(SmartyEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the switch on."""
-        await self.hass.async_add_executor_job(
-            self.entity_description.turn_on_fn, self.coordinator.client
-        )
-        await self.coordinator.async_refresh()
+        # Use execute_command to ensure we have a live connection
+        await self.coordinator.execute_command(self.entity_description.turn_on_fn)
+        await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the switch off."""
-        await self.hass.async_add_executor_job(
-            self.entity_description.turn_off_fn, self.coordinator.client
-        )
-        await self.coordinator.async_refresh()
+        # Use execute_command to ensure we have a live connection
+        await self.coordinator.execute_command(self.entity_description.turn_off_fn)
+        await self.coordinator.async_request_refresh()

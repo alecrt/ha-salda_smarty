@@ -54,7 +54,6 @@ class SmartyFan(SmartyEntity, FanEntity):
         """Initialize the entity."""
         super().__init__(coordinator)
         self._smarty_fan_speed = 0
-        self._smarty = coordinator.client
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{coordinator.slave}"
 
     @property
@@ -74,23 +73,28 @@ class SmartyFan(SmartyEntity, FanEntity):
             return 0
         return ranged_value_to_percentage(SPEED_RANGE, self._smarty_fan_speed)
 
-    def set_percentage(self, percentage: int) -> None:
+    async def async_set_percentage(self, percentage: int) -> None:
         """Set the speed percentage of the fan."""
         _LOGGER.debug("Set the fan percentage to %s", percentage)
         if percentage == 0:
-            self.turn_off()
+            await self.async_turn_off()
             return
 
         fan_speed = math.ceil(percentage_to_ranged_value(SPEED_RANGE, percentage))
-        if not self._smarty.set_fan_speed(fan_speed):
+        
+        result = await self.coordinator.execute_command(
+            lambda client: client.set_fan_speed(fan_speed)
+        )
+        
+        if not result:
             raise HomeAssistantError(
                 f"Failed to set the fan speed percentage to {percentage}"
             )
 
         self._smarty_fan_speed = fan_speed
-        self.schedule_update_ha_state()
+        self.async_write_ha_state()
 
-    def turn_on(
+    async def async_turn_on(
         self,
         percentage: int | None = None,
         preset_mode: str | None = None,
@@ -98,19 +102,25 @@ class SmartyFan(SmartyEntity, FanEntity):
     ) -> None:
         """Turn on the fan."""
         _LOGGER.debug("Turning on fan. percentage is %s", percentage)
-        self.set_percentage(percentage or DEFAULT_ON_PERCENTAGE)
+        await self.async_set_percentage(percentage or DEFAULT_ON_PERCENTAGE)
 
-    def turn_off(self, **kwargs: Any) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn off the fan."""
         _LOGGER.debug("Turning off fan")
-        if not self._smarty.turn_off():
+        
+        result = await self.coordinator.execute_command(
+            lambda client: client.turn_off()
+        )
+        
+        if not result:
             raise HomeAssistantError("Failed to turn off the fan")
 
         self._smarty_fan_speed = 0
-        self.schedule_update_ha_state()
+        self.async_write_ha_state()
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Call update method."""
-        self._smarty_fan_speed = self._smarty.fan_speed
+        # Use coordinator.client which is updated by coordinator
+        self._smarty_fan_speed = self.coordinator.client.fan_speed
         super()._handle_coordinator_update()

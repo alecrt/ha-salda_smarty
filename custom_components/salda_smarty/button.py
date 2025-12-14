@@ -69,7 +69,5 @@ class SmartyButton(SmartyEntity, ButtonEntity):
 
     async def async_press(self, **kwargs: Any) -> None:
         """Press the button."""
-        await self.hass.async_add_executor_job(
-            self.entity_description.press_fn, self.coordinator.client
-        )
-        await self.coordinator.async_refresh()
+        await self.coordinator.execute_command(self.entity_description.press_fn)
+        await self.coordinator.async_request_refresh()
