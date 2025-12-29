@@ -15,7 +15,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 _LOGGER = logging.getLogger(__name__)
 
 MAX_RETRIES = 3
-RETRY_DELAY = 1.0  # seconds between retries
+RETRY_DELAY = 2.0  # seconds between retries
 
 type SmartyConfigEntry = ConfigEntry[dict[int, "SmartyCoordinator"]]
 
